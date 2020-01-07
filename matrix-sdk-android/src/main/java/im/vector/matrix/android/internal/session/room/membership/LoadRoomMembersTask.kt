@@ -31,6 +31,7 @@ import im.vector.matrix.android.internal.task.Task
 import im.vector.matrix.android.internal.util.awaitTransaction
 import io.realm.Realm
 import io.realm.kotlin.createObject
+import org.greenrobot.eventbus.EventBus
 import javax.inject.Inject
 
 internal interface LoadRoomMembersTask : Task<LoadRoomMembersTask.Params, Unit> {
@@ -41,10 +42,12 @@ internal interface LoadRoomMembersTask : Task<LoadRoomMembersTask.Params, Unit> 
     )
 }
 
-internal class DefaultLoadRoomMembersTask @Inject constructor(private val roomAPI: RoomAPI,
-                                                              private val monarchy: Monarchy,
-                                                              private val syncTokenStore: SyncTokenStore,
-                                                              private val roomSummaryUpdater: RoomSummaryUpdater
+internal class DefaultLoadRoomMembersTask @Inject constructor(
+        private val roomAPI: RoomAPI,
+        private val monarchy: Monarchy,
+        private val syncTokenStore: SyncTokenStore,
+        private val roomSummaryUpdater: RoomSummaryUpdater,
+        private val eventBus: EventBus
 ) : LoadRoomMembersTask {
 
     override suspend fun execute(params: LoadRoomMembersTask.Params) {
@@ -52,7 +55,7 @@ internal class DefaultLoadRoomMembersTask @Inject constructor(private val roomAP
             return
         }
         val lastToken = syncTokenStore.getLastToken()
-        val response = executeRequest<RoomMembersResponse> {
+        val response = executeRequest<RoomMembersResponse>(eventBus) {
             apiCall = roomAPI.getMembers(params.roomId, lastToken, null, params.excludeMembership?.value)
         }
         insertInDb(response, params.roomId)
